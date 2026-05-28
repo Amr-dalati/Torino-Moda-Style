@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
+use App\Http\Controllers\Api\CustomerCartController;
 use App\Http\Controllers\Api\CustomerProfileController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\PhoenixHealthController;
@@ -44,4 +45,10 @@ Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->p
     Route::put('/addresses/{id}', [CustomerAddressController::class, 'update'])->whereNumber('id');
     Route::delete('/addresses/{id}', [CustomerAddressController::class, 'destroy'])->whereNumber('id');
     Route::post('/addresses/{id}/default', [CustomerAddressController::class, 'setDefault'])->whereNumber('id');
+
+    Route::get('/cart', [CustomerCartController::class, 'show']);
+    Route::post('/cart/items', [CustomerCartController::class, 'addItem']);
+    Route::put('/cart/items/{id}', [CustomerCartController::class, 'updateItem'])->whereNumber('id');
+    Route::delete('/cart/items/{id}', [CustomerCartController::class, 'removeItem'])->whereNumber('id');
+    Route::delete('/cart', [CustomerCartController::class, 'clear']);
 });
