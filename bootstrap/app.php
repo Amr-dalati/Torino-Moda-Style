@@ -1,13 +1,18 @@
 <?php
 
 use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -40,6 +45,18 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        $exceptions->render(function (AuthorizationException $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Forbidden.', 403);
+            }
+        });
+
+        $exceptions->render(function (AccessDeniedHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Forbidden.', 403);
+            }
+        });
+
         $exceptions->render(function (ModelNotFoundException $e, $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error('Not found.', 404);
@@ -49,6 +66,30 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (NotFoundHttpException $e, $request) {
             if ($request->is('api/*')) {
                 return ApiResponse::error('Not found.', 404);
+            }
+        });
+
+        $exceptions->render(function (ThrottleRequestsException $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Too many requests.', 429);
+            }
+        });
+
+        $exceptions->render(function (TooManyRequestsHttpException $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Too many requests.', 429);
+            }
+        });
+
+        $exceptions->render(function (QueryException $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Server error.', 500);
+            }
+        });
+
+        $exceptions->render(function (\Throwable $e, $request) {
+            if ($request->is('api/*')) {
+                return ApiResponse::error('Server error.', 500);
             }
         });
     })->create();

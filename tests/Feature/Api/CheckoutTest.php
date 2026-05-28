@@ -49,9 +49,9 @@ class CheckoutTest extends TestCase
 
         $res->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.subtotal', 2598)
-            ->assertJsonPath('data.discount_total', 0)
-            ->assertJsonPath('data.delivery_fee', 50);
+            ->assertJsonPath('data.subtotal', '2598.00')
+            ->assertJsonPath('data.discount_total', '0.00')
+            ->assertJsonPath('data.delivery_fee', '50.00');
     }
 
     public function test_quote_with_empty_cart_fails_422(): void

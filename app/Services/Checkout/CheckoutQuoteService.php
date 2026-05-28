@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 class CheckoutQuoteService
 {
     /**
-     * @return array{subtotal: float, delivery_fee: float, discount_total: float, total: float}
+     * @return array{subtotal: string, delivery_fee: string, discount_total: string, total: string}
      */
     public function quote(Customer $customer, int $addressId): array
     {
@@ -57,12 +57,17 @@ class CheckoutQuoteService
         $total = $subtotal + $deliveryFee - $discountTotal;
 
         return [
-            'subtotal' => $subtotal,
-            'delivery_fee' => $deliveryFee,
-            'discount_total' => $discountTotal,
-            'total' => $total,
+            'subtotal' => $this->formatMoney($subtotal),
+            'delivery_fee' => $this->formatMoney($deliveryFee),
+            'discount_total' => $this->formatMoney($discountTotal),
+            'total' => $this->formatMoney($total),
             // For debugging / future display, we can return codes later if desired.
         ];
+    }
+
+    protected function formatMoney(float $amount): string
+    {
+        return number_format($amount, 2, '.', '');
     }
 }
 
