@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "PHX-1001",
+      "product_code": "TMS-SHOE-001",
+      "barcode": "6281001001001",
+      "name_ar": "حذاء نسائي كلاسيك",
+      "name_en": "Classic Women's Heel",
+      "category_code": "SHOES",
+      "brand_code": "TORINO",
+      "sale_price": 1299.0,
+      "status": "active",
+      "variants": [
+        {
+          "id": "PHX-V-1001-38",
+          "sku": "TMS-SHOE-001-38-BLK",
+          "barcode": "6281001001018",
+          "color_code": "BLACK",
+          "size_code": "38",
+          "sale_price": 1299.0
+        }
+      ]
+    }
+  ]
+}

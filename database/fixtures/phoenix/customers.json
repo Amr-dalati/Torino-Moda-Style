@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "id": "PHX-C-001",
+      "code": "CUST-001",
+      "name": "Retail Customer Demo",
+      "phone": "+201000000001",
+      "email": "demo@customer.test"
+    }
+  ]
+}
