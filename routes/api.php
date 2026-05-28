@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CustomerCheckoutController;
 use App\Http\Controllers\Api\CustomerProfileController;
 use App\Http\Controllers\Api\CustomerOrderController;
 use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MockPaymentController;
 use App\Http\Controllers\Api\PhoenixHealthController;
 use App\Http\Controllers\Api\ProductController;
@@ -22,6 +23,7 @@ Route::middleware('throttle:auth.strict')->group(function () {
 
 Route::get('/delivery/regions', [DeliveryController::class, 'regions']);
 Route::get('/delivery/areas', [DeliveryController::class, 'areas']);
+Route::get('/health', HealthController::class);
 
 Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\User::class])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
