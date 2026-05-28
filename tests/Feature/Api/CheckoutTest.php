@@ -54,6 +54,46 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.delivery_fee', 50);
     }
 
+    public function test_quote_with_empty_cart_fails_422(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $area = DeliveryArea::query()->where('is_active', true)->firstOrFail();
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => $area->id,
+            'address_line1' => 'Street 1',
+        ]);
+
+        $this->postJson('/api/customer/checkout/quote', [
+            'address_id' => $address->id,
+        ])->assertStatus(422)->assertJsonPath('success', false);
+    }
+
+    public function test_quote_with_inactive_delivery_area_fails_422(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $area = DeliveryArea::query()->firstOrFail();
+        $area->forceFill(['is_active' => false])->save();
+
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => $area->id,
+            'address_line1' => 'Street 1',
+        ]);
+
+        $variant = ProductVariant::query()->firstOrFail();
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/customer/checkout/quote', [
+            'address_id' => $address->id,
+        ])->assertStatus(422)->assertJsonPath('success', false);
+    }
+
     public function test_checkout_creates_order_and_payment_pending(): void
     {
         $customer = Customer::factory()->create();
@@ -97,6 +137,27 @@ class CheckoutTest extends TestCase
             'delivery_area_id' => $area->id,
             'address_line1' => 'Street 1',
         ]);
+
+        $this->postJson('/api/customer/checkout', [
+            'address_id' => $address->id,
+        ])->assertStatus(422)->assertJsonPath('success', false);
+    }
+
+    public function test_checkout_with_address_missing_delivery_area_id_fails_422(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => null,
+            'address_line1' => 'Street 1',
+        ]);
+
+        $variant = ProductVariant::query()->firstOrFail();
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
 
         $this->postJson('/api/customer/checkout', [
             'address_id' => $address->id,
@@ -258,6 +319,49 @@ class CheckoutTest extends TestCase
         ])->assertOk();
 
         $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_payment_success_only_transitions_pending_payment(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $area = DeliveryArea::query()->where('is_active', true)->firstOrFail();
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => $area->id,
+            'address_line1' => 'Street 1',
+        ]);
+
+        $variant = ProductVariant::query()->firstOrFail();
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $checkout = $this->postJson('/api/customer/checkout', [
+            'address_id' => $address->id,
+        ])->assertStatus(201)->json('data');
+
+        $merchantRef = $checkout['payment']['merchant_reference'];
+
+        // Force payment into a non-pending state.
+        Payment::query()->where('merchant_reference', $merchantRef)->update(['status' => 'failed']);
+
+        $this->postJson('/api/payments/mock/success', [
+            'merchant_reference' => $merchantRef,
+        ])->assertStatus(422)->assertJsonPath('success', false);
+
+        Payment::query()->where('merchant_reference', $merchantRef)->update(['status' => 'cancelled']);
+
+        $this->postJson('/api/payments/mock/success', [
+            'merchant_reference' => $merchantRef,
+        ])->assertStatus(422)->assertJsonPath('success', false);
+
+        Payment::query()->where('merchant_reference', $merchantRef)->update(['status' => 'expired']);
+
+        $this->postJson('/api/payments/mock/success', [
+            'merchant_reference' => $merchantRef,
+        ])->assertStatus(422)->assertJsonPath('success', false);
     }
 
     public function test_customer_cannot_access_another_customers_order(): void
