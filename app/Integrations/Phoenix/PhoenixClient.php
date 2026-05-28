@@ -5,6 +5,7 @@ namespace App\Integrations\Phoenix;
 use App\Integrations\Phoenix\Contracts\PhoenixClientInterface;
 use App\Integrations\Phoenix\Exceptions\PhoenixApiException;
 use App\Models\ApiIntegrationLog;
+use App\Support\SensitiveDataRedactor;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -58,8 +59,8 @@ class PhoenixClient implements PhoenixClientInterface
             'method' => strtoupper($method),
             'url' => $url,
             'status_code' => $response->status(),
-            'request_body' => $method === 'POST' ? $payload : $query,
-            'response_body' => $response->json() ?? ['raw' => $response->body()],
+            'request_body' => SensitiveDataRedactor::redact($method === 'POST' ? $payload : $query),
+            'response_body' => SensitiveDataRedactor::redact($response->json() ?? ['raw' => $response->body()]),
             'duration_ms' => $durationMs,
             'is_mock' => false,
         ]);

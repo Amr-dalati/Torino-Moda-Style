@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PaymentWebhookResource\Pages;
 use App\Models\PaymentWebhook;
 use Filament\Forms\Form;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -18,6 +20,20 @@ class PaymentWebhookResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        // Explicitly avoid rendering raw payloads in Filament.
+        return $infolist->schema([
+            Infolists\Components\TextEntry::make('provider'),
+            Infolists\Components\TextEntry::make('event_type'),
+            Infolists\Components\TextEntry::make('processing_status'),
+            Infolists\Components\IconEntry::make('signature_valid')->boolean(),
+            Infolists\Components\TextEntry::make('received_at')->dateTime(),
+            Infolists\Components\TextEntry::make('processed_at')->dateTime(),
+            Infolists\Components\TextEntry::make('error_message'),
+        ]);
     }
 
     public static function table(Table $table): Table

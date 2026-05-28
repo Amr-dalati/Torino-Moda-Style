@@ -13,6 +13,7 @@ use App\Models\ProductVariant;
 use App\Models\Size;
 use App\Models\StockLevel;
 use App\Models\Warehouse;
+use App\Support\SensitiveDataRedactor;
 use Illuminate\Support\Facades\DB;
 
 class SyncFromPhoenixService
@@ -193,7 +194,7 @@ class SyncFromPhoenixService
         } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => (string) SensitiveDataRedactor::redact(['error' => $e->getMessage()])['error'],
                 'finished_at' => now(),
             ]);
 
@@ -283,7 +284,7 @@ class SyncFromPhoenixService
         } catch (\Throwable $e) {
             $log->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => (string) SensitiveDataRedactor::redact(['error' => $e->getMessage()])['error'],
                 'finished_at' => now(),
             ]);
 

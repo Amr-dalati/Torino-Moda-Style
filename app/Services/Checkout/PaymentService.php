@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentWebhook;
+use App\Support\SensitiveDataRedactor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -24,7 +25,7 @@ class PaymentService
             'checkout_url' => $result['checkout_url'],
             'gateway_payment_id' => $result['gateway_payment_id'],
             'expires_at' => $result['expires_at'],
-            'raw_payload' => $result['raw_payload'] ?? null,
+            'raw_payload' => isset($result['raw_payload']) ? SensitiveDataRedactor::redact($result['raw_payload']) : null,
         ])->save();
 
         return $payment->fresh();
@@ -50,7 +51,7 @@ class PaymentService
             $payment->forceFill([
                 'status' => 'paid',
                 'paid_at' => now(),
-                'raw_payload' => $payload ?: $payment->raw_payload,
+                'raw_payload' => $payload ? SensitiveDataRedactor::redact($payload) : $payment->raw_payload,
             ])->save();
 
             /** @var Order $order */
@@ -72,11 +73,11 @@ class PaymentService
                 'event_type' => 'payment_succeeded',
                 'gateway_event_id' => null,
                 'signature_valid' => true,
-                'payload' => [
+                'payload' => SensitiveDataRedactor::redact([
                     'merchant_reference' => $merchantReference,
                     'payment_id' => $payment->id,
                     'order_id' => $order->id,
-                ],
+                ]),
                 'received_at' => now(),
                 'processed_at' => now(),
                 'processing_status' => 'processed',
