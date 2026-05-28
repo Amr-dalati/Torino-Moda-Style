@@ -58,30 +58,49 @@ class SyncFromPhoenixService
             ];
 
             DB::transaction(function () use (&$counts, $payload, $syncedAt) {
+                /** @var array<string, \App\Models\Category> $categoryCache */
+                $categoryCache = [];
+                /** @var array<string, \App\Models\Brand> $brandCache */
+                $brandCache = [];
+                /** @var array<string, \App\Models\Color> $colorCache */
+                $colorCache = [];
+                /** @var array<string, \App\Models\Size> $sizeCache */
+                $sizeCache = [];
+
                 foreach ($payload as $p) {
                     $category = null;
                     if (! empty($p['category_code'])) {
-                        $category = Category::query()->updateOrCreate(
-                            ['code' => (string) $p['category_code']],
-                            [
-                                'name_en' => (string) ($p['category_code'] ?? null),
-                                'is_active' => true,
-                                'synced_at' => $syncedAt,
-                            ],
-                        );
+                        $code = (string) $p['category_code'];
+                        if (! isset($categoryCache[$code])) {
+                            $categoryCache[$code] = Category::query()->updateOrCreate(
+                                ['code' => $code],
+                                [
+                                    'name_en' => $code,
+                                    'is_active' => true,
+                                    'synced_at' => $syncedAt,
+                                ],
+                            );
+                        }
+
+                        $category = $categoryCache[$code];
                         $counts['categories']++;
                     }
 
                     $brand = null;
                     if (! empty($p['brand_code'])) {
-                        $brand = Brand::query()->updateOrCreate(
-                            ['code' => (string) $p['brand_code']],
-                            [
-                                'name' => (string) ($p['brand_code'] ?? null),
-                                'is_active' => true,
-                                'synced_at' => $syncedAt,
-                            ],
-                        );
+                        $code = (string) $p['brand_code'];
+                        if (! isset($brandCache[$code])) {
+                            $brandCache[$code] = Brand::query()->updateOrCreate(
+                                ['code' => $code],
+                                [
+                                    'name' => $code,
+                                    'is_active' => true,
+                                    'synced_at' => $syncedAt,
+                                ],
+                            );
+                        }
+
+                        $brand = $brandCache[$code];
                         $counts['brands']++;
                     }
 
@@ -109,27 +128,37 @@ class SyncFromPhoenixService
 
                         $color = null;
                         if (! empty($v['color_code'])) {
-                            $color = Color::query()->updateOrCreate(
-                                ['code' => (string) $v['color_code']],
-                                [
-                                    'name_en' => (string) ($v['color_code'] ?? null),
-                                    'is_active' => true,
-                                    'synced_at' => $syncedAt,
-                                ],
-                            );
+                            $code = (string) $v['color_code'];
+                            if (! isset($colorCache[$code])) {
+                                $colorCache[$code] = Color::query()->updateOrCreate(
+                                    ['code' => $code],
+                                    [
+                                        'name_en' => $code,
+                                        'is_active' => true,
+                                        'synced_at' => $syncedAt,
+                                    ],
+                                );
+                            }
+
+                            $color = $colorCache[$code];
                             $counts['colors']++;
                         }
 
                         $size = null;
                         if (! empty($v['size_code'])) {
-                            $size = Size::query()->updateOrCreate(
-                                ['code' => (string) $v['size_code']],
-                                [
-                                    'name' => (string) ($v['size_code'] ?? null),
-                                    'is_active' => true,
-                                    'synced_at' => $syncedAt,
-                                ],
-                            );
+                            $code = (string) $v['size_code'];
+                            if (! isset($sizeCache[$code])) {
+                                $sizeCache[$code] = Size::query()->updateOrCreate(
+                                    ['code' => $code],
+                                    [
+                                        'name' => $code,
+                                        'is_active' => true,
+                                        'synced_at' => $syncedAt,
+                                    ],
+                                );
+                            }
+
+                            $size = $sizeCache[$code];
                             $counts['sizes']++;
                         }
 
@@ -195,6 +224,9 @@ class SyncFromPhoenixService
             ];
 
             DB::transaction(function () use (&$counts, $payload, $syncedAt) {
+                /** @var array<string, \App\Models\Warehouse> $warehouseCache */
+                $warehouseCache = [];
+
                 foreach ($payload as $row) {
                     $variantPhoenixId = (string) ($row['variant_id'] ?? '');
                     $warehouseCode = (string) ($row['warehouse_code'] ?? '');
@@ -210,14 +242,18 @@ class SyncFromPhoenixService
                         continue;
                     }
 
-                    $warehouse = Warehouse::query()->updateOrCreate(
-                        ['code' => $warehouseCode],
-                        [
-                            'name' => $warehouseCode,
-                            'is_active' => true,
-                            'synced_at' => $syncedAt,
-                        ],
-                    );
+                    if (! isset($warehouseCache[$warehouseCode])) {
+                        $warehouseCache[$warehouseCode] = Warehouse::query()->updateOrCreate(
+                            ['code' => $warehouseCode],
+                            [
+                                'name' => $warehouseCode,
+                                'is_active' => true,
+                                'synced_at' => $syncedAt,
+                            ],
+                        );
+                    }
+
+                    $warehouse = $warehouseCache[$warehouseCode];
                     $counts['warehouses']++;
 
                     StockLevel::query()->updateOrCreate(
