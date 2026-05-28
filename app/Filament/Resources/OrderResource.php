@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class OrderResource extends Resource
 {
@@ -98,6 +99,12 @@ class OrderResource extends Resource
                     ->action(fn (Order $record) => app(OrderFulfillmentService::class)->cancel($record->id)),
             ])
             ->bulkActions([]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['customer']);
     }
 
     public static function canCreate(): bool
