@@ -14,9 +14,11 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/customer/register', [CustomerAuthController::class, 'register']);
-Route::post('/customer/login', [CustomerAuthController::class, 'login']);
+Route::middleware('throttle:auth.strict')->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/customer/register', [CustomerAuthController::class, 'register']);
+    Route::post('/customer/login', [CustomerAuthController::class, 'login']);
+});
 
 Route::get('/delivery/regions', [DeliveryController::class, 'regions']);
 Route::get('/delivery/areas', [DeliveryController::class, 'areas']);
@@ -50,13 +52,17 @@ Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->p
     Route::post('/addresses/{id}/default', [CustomerAddressController::class, 'setDefault'])->whereNumber('id');
 
     Route::get('/cart', [CustomerCartController::class, 'show']);
-    Route::post('/cart/items', [CustomerCartController::class, 'addItem']);
-    Route::put('/cart/items/{id}', [CustomerCartController::class, 'updateItem'])->whereNumber('id');
-    Route::delete('/cart/items/{id}', [CustomerCartController::class, 'removeItem'])->whereNumber('id');
-    Route::delete('/cart', [CustomerCartController::class, 'clear']);
+    Route::middleware('throttle:cart.mutations')->group(function () {
+        Route::post('/cart/items', [CustomerCartController::class, 'addItem']);
+        Route::put('/cart/items/{id}', [CustomerCartController::class, 'updateItem'])->whereNumber('id');
+        Route::delete('/cart/items/{id}', [CustomerCartController::class, 'removeItem'])->whereNumber('id');
+        Route::delete('/cart', [CustomerCartController::class, 'clear']);
+    });
 
-    Route::post('/checkout/quote', [CustomerCheckoutController::class, 'quote']);
-    Route::post('/checkout', [CustomerCheckoutController::class, 'checkout']);
+    Route::middleware('throttle:checkout.strict')->group(function () {
+        Route::post('/checkout/quote', [CustomerCheckoutController::class, 'quote']);
+        Route::post('/checkout', [CustomerCheckoutController::class, 'checkout']);
+    });
 
     Route::get('/orders', [CustomerOrderController::class, 'index']);
     Route::get('/orders/{id}', [CustomerOrderController::class, 'show'])->whereNumber('id');
@@ -64,5 +70,5 @@ Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->p
 });
 
 Route::middleware('local.testing')->group(function () {
-    Route::post('/payments/mock/success', [MockPaymentController::class, 'success']);
+    Route::post('/payments/mock/success', [MockPaymentController::class, 'success'])->middleware('throttle:mock.payment.strict');
 });
