@@ -13,6 +13,7 @@ use App\Models\StockLevel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
 
 class CheckoutService
 {
@@ -27,10 +28,13 @@ class CheckoutService
     public function checkout(Customer $customer, int $addressId): array
     {
         return DB::transaction(function () use ($customer, $addressId) {
+            // Serialize checkout per customer to prevent double-submit races.
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
             /** @var Cart $cart */
             $cart = Cart::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => 0],
+                ['subtotal' => '0.00'],
             );
 
             /** @var Cart $cart */
@@ -70,9 +74,32 @@ class CheckoutService
                 }
             }
 
+            // Idempotency: if this cart was already checked out and has an order, return it.
+            $existingOrder = Order::query()
+                ->where('cart_id', $cart->id)
+                ->with(['items', 'payments' => fn ($q) => $q->orderByDesc('id')])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingOrder) {
+                $latestPayment = $existingOrder->payments->first();
+                if (! $latestPayment) {
+                    // Shouldn't happen, but keep shape stable.
+                    throw ValidationException::withMessages([
+                        'order' => ['Checkout already started, but no payment exists.'],
+                    ]);
+                }
+
+                return [
+                    'order' => $existingOrder,
+                    'payment' => $latestPayment,
+                ];
+            }
+
             $quote = $this->quotes->quote($customer, $addressId);
 
-            $order = Order::query()->create([
+            try {
+                $order = Order::query()->create([
                 'order_number' => $this->generateTempOrderNumber(),
                 'customer_id' => $customer->id,
                 'order_status' => 'awaiting_payment',
@@ -95,7 +122,27 @@ class CheckoutService
                 'shipping_delivery_area_id' => $area->id,
                 'customer_address_id' => $address->id,
                 'cart_id' => $cart->id,
-            ]);
+                ]);
+            } catch (QueryException $e) {
+                // Handle unique(cart_id) race: return existing order.
+                if (str_contains($e->getMessage(), 'UNIQUE') || str_contains($e->getMessage(), 'unique')) {
+                    /** @var Order $order */
+                    $order = Order::query()
+                        ->where('cart_id', $cart->id)
+                        ->with(['items', 'payments' => fn ($q) => $q->orderByDesc('id')])
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    $latestPayment = $order->payments->firstOrFail();
+
+                    return [
+                        'order' => $order,
+                        'payment' => $latestPayment,
+                    ];
+                }
+
+                throw $e;
+            }
 
             // Now replace temp order number with deterministic number using ID.
             $order->forceFill(['order_number' => $this->formatOrderNumber($order->id)])->save();

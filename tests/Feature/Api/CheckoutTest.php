@@ -163,6 +163,38 @@ class CheckoutTest extends TestCase
         $this->assertDatabaseCount('payments', 1);
     }
 
+    public function test_checkout_is_idempotent_for_same_active_cart(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $area = DeliveryArea::query()->where('is_active', true)->firstOrFail();
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => $area->id,
+            'address_line1' => 'Street 1',
+            'recipient_phone' => '+10000000000',
+        ]);
+
+        $variant = ProductVariant::query()->firstOrFail();
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $first = $this->postJson('/api/customer/checkout', [
+            'address_id' => $address->id,
+        ])->assertStatus(201)->json('data');
+
+        $second = $this->postJson('/api/customer/checkout', [
+            'address_id' => $address->id,
+        ])->assertStatus(201)->json('data');
+
+        $this->assertSame($first['order']['id'], $second['order']['id']);
+        $this->assertSame($first['payment']['id'], $second['payment']['id']);
+        $this->assertDatabaseCount('orders', 1);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
     public function test_checkout_with_empty_cart_fails_422(): void
     {
         $customer = Customer::factory()->create();

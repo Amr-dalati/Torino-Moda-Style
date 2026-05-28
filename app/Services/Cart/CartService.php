@@ -9,33 +9,65 @@ use App\Models\ProductVariant;
 use App\Models\StockLevel;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 class CartService
 {
     public function getActiveCart(Customer $customer): Cart
     {
-        /** @var Cart $cart */
-        $cart = Cart::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'status' => 'active'],
-            ['subtotal' => '0.00'],
-        );
+        return DB::transaction(function () use ($customer) {
+            // Serialize active-cart creation per customer.
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
 
-        return $this->loadCart($cart);
+            /** @var Cart|null $cart */
+            $cart = Cart::query()
+                ->where('customer_id', $customer->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $cart) {
+                $cart = Cart::query()->create([
+                    'customer_id' => $customer->id,
+                    'status' => 'active',
+                    'subtotal' => '0.00',
+                ]);
+            }
+
+            return $this->loadCart($cart->fresh());
+        });
     }
 
     public function addItem(Customer $customer, int $variantId, int $quantity): Cart
     {
         return DB::transaction(function () use ($customer, $variantId, $quantity) {
-            $cart = Cart::query()->firstOrCreate(
-                ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => '0.00'],
-            );
+            // Serialize active-cart/item mutations per customer.
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
+            /** @var Cart $cart */
+            $cart = Cart::query()
+                ->where('customer_id', $customer->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $cart) {
+                $cart = Cart::query()->create([
+                    'customer_id' => $customer->id,
+                    'status' => 'active',
+                    'subtotal' => '0.00',
+                ]);
+            }
 
             $variant = $this->loadVariantOrFail($variantId);
 
             /** @var CartItem|null $existing */
-            $existing = $cart->items()->where('product_variant_id', $variant->id)->first();
+            $existing = $cart->items()
+                ->where('product_variant_id', $variant->id)
+                ->lockForUpdate()
+                ->first();
+
             $newQty = $existing ? ($existing->quantity + $quantity) : $quantity;
 
             $available = $this->availableQuantityForVariant($variant->id);
@@ -51,12 +83,35 @@ class CartService
                     'line_total' => $lineTotal,
                 ])->save();
             } else {
-                $cart->items()->create([
-                    'product_variant_id' => $variant->id,
-                    'quantity' => $newQty,
-                    'unit_price_snapshot' => $unitPrice,
-                    'line_total' => $lineTotal,
-                ]);
+                try {
+                    $cart->items()->create([
+                        'product_variant_id' => $variant->id,
+                        'quantity' => $newQty,
+                        'unit_price_snapshot' => $unitPrice,
+                        'line_total' => $lineTotal,
+                    ]);
+                } catch (QueryException $e) {
+                    // Handle race where a concurrent request created the same (cart_id, product_variant_id).
+                    if (str_contains($e->getMessage(), 'UNIQUE') || str_contains($e->getMessage(), 'unique')) {
+                        /** @var CartItem $existingAfter */
+                        $existingAfter = $cart->items()
+                            ->where('product_variant_id', $variant->id)
+                            ->lockForUpdate()
+                            ->firstOrFail();
+
+                        $mergedQty = $existingAfter->quantity + $quantity;
+                        $available = $this->availableQuantityForVariant($variant->id);
+                        $this->ensureSufficientStock($mergedQty, $available);
+
+                        $existingAfter->forceFill([
+                            'quantity' => $mergedQty,
+                            'unit_price_snapshot' => $unitPrice,
+                            'line_total' => Money::mul($unitPrice, $mergedQty),
+                        ])->save();
+                    } else {
+                        throw $e;
+                    }
+                }
             }
 
             $this->recalculateSubtotal($cart);
@@ -68,13 +123,16 @@ class CartService
     public function updateItemQuantity(Customer $customer, int $itemId, int $quantity): Cart
     {
         return DB::transaction(function () use ($customer, $itemId, $quantity) {
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
             $cart = Cart::query()
                 ->where('customer_id', $customer->id)
                 ->where('status', 'active')
+                ->lockForUpdate()
                 ->firstOrFail();
 
             /** @var CartItem $item */
-            $item = $cart->items()->whereKey($itemId)->firstOrFail();
+            $item = $cart->items()->whereKey($itemId)->lockForUpdate()->firstOrFail();
 
             $variant = $this->loadVariantOrFail($item->product_variant_id);
 
@@ -99,13 +157,16 @@ class CartService
     public function removeItem(Customer $customer, int $itemId): Cart
     {
         return DB::transaction(function () use ($customer, $itemId) {
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
             $cart = Cart::query()
                 ->where('customer_id', $customer->id)
                 ->where('status', 'active')
+                ->lockForUpdate()
                 ->firstOrFail();
 
             /** @var CartItem $item */
-            $item = $cart->items()->whereKey($itemId)->firstOrFail();
+            $item = $cart->items()->whereKey($itemId)->lockForUpdate()->firstOrFail();
             $item->delete();
 
             $this->recalculateSubtotal($cart);
@@ -117,11 +178,22 @@ class CartService
     public function clear(Customer $customer): Cart
     {
         return DB::transaction(function () use ($customer) {
-            /** @var Cart $cart */
-            $cart = Cart::query()->firstOrCreate(
-                ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => '0.00'],
-            );
+            Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
+            /** @var Cart|null $cart */
+            $cart = Cart::query()
+                ->where('customer_id', $customer->id)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $cart) {
+                $cart = Cart::query()->create([
+                    'customer_id' => $customer->id,
+                    'status' => 'active',
+                    'subtotal' => '0.00',
+                ]);
+            }
 
             $cart->items()->delete();
             $cart->forceFill(['subtotal' => '0.00'])->save();

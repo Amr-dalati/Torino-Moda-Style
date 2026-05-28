@@ -106,6 +106,28 @@ class CustomerCartTest extends TestCase
             ->assertJsonPath('data.items.0.quantity', 3);
     }
 
+    public function test_add_same_item_does_not_create_duplicate_cart_item_rows(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $variant = ProductVariant::query()->firstOrFail();
+
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $cart = \App\Models\Cart::query()->where('customer_id', $customer->id)->where('status', 'active')->firstOrFail();
+        $this->assertDatabaseCount('cart_items', 1);
+        $this->assertSame(2, (int) $cart->items()->firstOrFail()->quantity);
+    }
+
     public function test_update_quantity_success(): void
     {
         Sanctum::actingAs(Customer::factory()->create());
