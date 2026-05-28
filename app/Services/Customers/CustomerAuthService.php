@@ -58,13 +58,15 @@ class CustomerAuthService
 
     public function logout(Customer $customer): void
     {
-        // Intelephense can struggle with nullsafe + polymorphic token type here;
-        // runtime is correct because currentAccessToken() returns a PersonalAccessToken instance.
+        // Revoke only the current token when available; otherwise fall back to revoking all tokens.
         /** @var PersonalAccessToken|null $token */
         $token = $customer->currentAccessToken();
         if ($token) {
             $token->delete();
+            return;
         }
+
+        $customer->tokens()->delete();
     }
 }
 

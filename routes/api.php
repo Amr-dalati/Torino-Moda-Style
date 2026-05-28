@@ -17,11 +17,13 @@ Route::post('/customer/login', [CustomerAuthController::class, 'login']);
 Route::get('/delivery/regions', [DeliveryController::class, 'regions']);
 Route::get('/delivery/areas', [DeliveryController::class, 'areas']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\User::class])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/phoenix/health', PhoenixHealthController::class);
+});
 
+Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/search', [ProductController::class, 'search']);
     Route::get('/products/barcode/{barcode}', [ProductController::class, 'barcode']);
@@ -30,15 +32,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock', [StockController::class, 'index']);
     Route::get('/stock/product/{product_id}', [StockController::class, 'byProduct'])->whereNumber('product_id');
     Route::get('/stock/warehouse/{warehouse_id}', [StockController::class, 'byWarehouse'])->whereNumber('warehouse_id');
+});
 
-    // Customer authenticated routes (tokenable must be Customer)
-    Route::get('/customer/me', [CustomerAuthController::class, 'me']);
-    Route::post('/customer/logout', [CustomerAuthController::class, 'logout']);
-    Route::put('/customer/profile', [CustomerProfileController::class, 'update']);
+Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->prefix('customer')->group(function () {
+    Route::get('/me', [CustomerAuthController::class, 'me']);
+    Route::post('/logout', [CustomerAuthController::class, 'logout']);
+    Route::put('/profile', [CustomerProfileController::class, 'update']);
 
-    Route::get('/customer/addresses', [CustomerAddressController::class, 'index']);
-    Route::post('/customer/addresses', [CustomerAddressController::class, 'store']);
-    Route::put('/customer/addresses/{id}', [CustomerAddressController::class, 'update'])->whereNumber('id');
-    Route::delete('/customer/addresses/{id}', [CustomerAddressController::class, 'destroy'])->whereNumber('id');
-    Route::post('/customer/addresses/{id}/default', [CustomerAddressController::class, 'setDefault'])->whereNumber('id');
+    Route::get('/addresses', [CustomerAddressController::class, 'index']);
+    Route::post('/addresses', [CustomerAddressController::class, 'store']);
+    Route::put('/addresses/{id}', [CustomerAddressController::class, 'update'])->whereNumber('id');
+    Route::delete('/addresses/{id}', [CustomerAddressController::class, 'destroy'])->whereNumber('id');
+    Route::post('/addresses/{id}/default', [CustomerAddressController::class, 'setDefault'])->whereNumber('id');
 });

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\DeliveryRegion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,6 +23,18 @@ class DeliveryTest extends TestCase
         $areas->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonCount(3, 'data');
+    }
+
+    public function test_areas_filter_by_region_id(): void
+    {
+        $this->artisan('db:seed');
+
+        $regionA = DeliveryRegion::query()->where('code', 'REGION_A')->firstOrFail();
+
+        $areas = $this->getJson("/api/delivery/areas?region_id={$regionA->id}");
+        $areas->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(2, 'data');
     }
 }
 

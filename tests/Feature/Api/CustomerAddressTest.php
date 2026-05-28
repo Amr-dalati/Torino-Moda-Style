@@ -13,6 +13,12 @@ class CustomerAddressTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_customer_endpoints_without_token_return_401(): void
+    {
+        $this->getJson('/api/customer/addresses')->assertStatus(401);
+        $this->postJson('/api/customer/addresses')->assertStatus(401);
+    }
+
     public function test_addresses_require_customer_tokenable(): void
     {
         Sanctum::actingAs(User::factory()->create());
@@ -87,6 +93,13 @@ class CustomerAddressTest extends TestCase
         $this->putJson("/api/customer/addresses/{$address->id}", [
             'address_line1' => 'Hacked',
         ])->assertStatus(404);
+    }
+
+    public function test_user_token_cannot_access_customer_routes(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/customer/me')->assertStatus(403);
     }
 }
 
