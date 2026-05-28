@@ -5,6 +5,7 @@ namespace App\Services\Checkout;
 use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\DeliveryArea;
+use App\Support\Money;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutQuoteService
@@ -30,9 +31,7 @@ class CheckoutQuoteService
 
         $address = $customer->addresses()->whereKey($addressId)->firstOrFail();
 
-        $deliveryFee = 0.0;
-        $deliveryAreaCode = null;
-        $deliveryRegionCode = null;
+        $deliveryFee = '0.00';
 
         if ($address->delivery_area_id) {
             /** @var DeliveryArea $area */
@@ -43,31 +42,28 @@ class CheckoutQuoteService
                 ]);
             }
 
-            $deliveryFee = (float) $area->delivery_fee;
-            $deliveryAreaCode = $area->code;
-            $deliveryRegionCode = $area->region?->code;
+            $deliveryFee = Money::format(Money::cents($area->delivery_fee));
         } else {
             throw ValidationException::withMessages([
                 'address_id' => ['Delivery area is required.'],
             ]);
         }
 
-        $subtotal = (float) $cart->items->sum('line_total');
-        $discountTotal = 0.0;
-        $total = $subtotal + $deliveryFee - $discountTotal;
+        $subtotalCents = 0;
+        foreach ($cart->items as $item) {
+            $subtotalCents += Money::cents($item->line_total);
+        }
+
+        $discountTotal = '0.00';
+        $total = Money::format($subtotalCents + Money::cents($deliveryFee) - Money::cents($discountTotal));
 
         return [
-            'subtotal' => $this->formatMoney($subtotal),
-            'delivery_fee' => $this->formatMoney($deliveryFee),
-            'discount_total' => $this->formatMoney($discountTotal),
-            'total' => $this->formatMoney($total),
+            'subtotal' => Money::format($subtotalCents),
+            'delivery_fee' => $deliveryFee,
+            'discount_total' => $discountTotal,
+            'total' => $total,
             // For debugging / future display, we can return codes later if desired.
         ];
-    }
-
-    protected function formatMoney(float $amount): string
-    {
-        return number_format($amount, 2, '.', '');
     }
 }
 

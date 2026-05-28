@@ -7,6 +7,7 @@ use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\ProductVariant;
 use App\Models\StockLevel;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,7 +18,7 @@ class CartService
         /** @var Cart $cart */
         $cart = Cart::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'status' => 'active'],
-            ['subtotal' => 0],
+            ['subtotal' => '0.00'],
         );
 
         return $this->loadCart($cart);
@@ -28,7 +29,7 @@ class CartService
         return DB::transaction(function () use ($customer, $variantId, $quantity) {
             $cart = Cart::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => 0],
+                ['subtotal' => '0.00'],
             );
 
             $variant = $this->loadVariantOrFail($variantId);
@@ -41,7 +42,7 @@ class CartService
             $this->ensureSufficientStock($newQty, $available);
 
             $unitPrice = $this->unitPriceSnapshot($variant);
-            $lineTotal = $unitPrice * $newQty;
+            $lineTotal = Money::mul($unitPrice, $newQty);
 
             if ($existing) {
                 $existing->forceFill([
@@ -81,7 +82,7 @@ class CartService
             $this->ensureSufficientStock($quantity, $available);
 
             $unitPrice = $this->unitPriceSnapshot($variant);
-            $lineTotal = $unitPrice * $quantity;
+            $lineTotal = Money::mul($unitPrice, $quantity);
 
             $item->forceFill([
                 'quantity' => $quantity,
@@ -119,11 +120,11 @@ class CartService
             /** @var Cart $cart */
             $cart = Cart::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => 0],
+                ['subtotal' => '0.00'],
             );
 
             $cart->items()->delete();
-            $cart->forceFill(['subtotal' => 0])->save();
+            $cart->forceFill(['subtotal' => '0.00'])->save();
 
             return $this->loadCart($cart->fresh());
         });
@@ -145,14 +146,14 @@ class CartService
             ->findOrFail($variantId);
     }
 
-    protected function unitPriceSnapshot(ProductVariant $variant): float
+    protected function unitPriceSnapshot(ProductVariant $variant): string
     {
-        $variantPrice = $variant->sale_price !== null ? (float) $variant->sale_price : null;
-        if ($variantPrice !== null && $variantPrice > 0) {
-            return $variantPrice;
+        $variantPrice = $variant->sale_price;
+        if ($variantPrice !== null && Money::cents($variantPrice) > 0) {
+            return Money::format(Money::cents($variantPrice));
         }
 
-        return (float) $variant->product->sale_price;
+        return Money::format(Money::cents($variant->product->sale_price));
     }
 
     protected function availableQuantityForVariant(int $variantId): float
@@ -186,8 +187,13 @@ class CartService
 
     protected function recalculateSubtotal(Cart $cart): void
     {
-        $subtotal = (float) $cart->items()->sum('line_total');
-        $cart->forceFill(['subtotal' => $subtotal])->save();
+        $items = $cart->items()->get(['line_total']);
+        $sumCents = 0;
+        foreach ($items as $item) {
+            $sumCents += Money::cents($item->line_total);
+        }
+
+        $cart->forceFill(['subtotal' => Money::format($sumCents)])->save();
     }
 }
 

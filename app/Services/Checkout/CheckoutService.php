@@ -81,7 +81,7 @@ class CheckoutService
                 'delivery_fee' => $quote['delivery_fee'],
                 'discount_total' => $quote['discount_total'],
                 'total' => $quote['total'],
-                'currency' => null,
+                'currency' => 'EGP',
                 'shipping_label' => $address->label,
                 'shipping_recipient_name' => $address->recipient_name,
                 'shipping_recipient_phone' => $address->recipient_phone,

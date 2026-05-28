@@ -54,6 +54,41 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.delivery_fee', '50.00');
     }
 
+    public function test_quote_total_equals_checkout_total_and_total_components_match(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $area = DeliveryArea::query()->where('is_active', true)->firstOrFail();
+        $address = $customer->addresses()->create([
+            'delivery_area_id' => $area->id,
+            'address_line1' => 'Street 1',
+            'recipient_phone' => '+10000000000',
+        ]);
+
+        $variant = ProductVariant::query()->firstOrFail();
+        $this->postJson('/api/customer/cart/items', [
+            'product_variant_id' => $variant->id,
+            'quantity' => 2,
+        ])->assertOk();
+
+        $quote = $this->postJson('/api/customer/checkout/quote', [
+            'address_id' => $address->id,
+        ])->assertOk()->json('data');
+
+        $checkout = $this->postJson('/api/customer/checkout', [
+            'address_id' => $address->id,
+        ])->assertStatus(201)->json('data');
+
+        $this->assertSame($quote['subtotal'], $checkout['order']['subtotal']);
+        $this->assertSame($quote['delivery_fee'], $checkout['order']['delivery_fee']);
+        $this->assertSame($quote['discount_total'], $checkout['order']['discount_total']);
+        $this->assertSame($quote['total'], $checkout['order']['total']);
+
+        $this->assertSame('EGP', $checkout['order']['currency']);
+        $this->assertSame($checkout['order']['total'], $checkout['payment']['amount']);
+    }
+
     public function test_quote_with_empty_cart_fails_422(): void
     {
         $customer = Customer::factory()->create();
@@ -120,7 +155,8 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.order.order_status', 'awaiting_payment')
             ->assertJsonPath('data.order.payment_status', 'pending')
-            ->assertJsonPath('data.payment.status', 'pending');
+            ->assertJsonPath('data.payment.status', 'pending')
+            ->assertJsonPath('data.order.currency', 'EGP');
 
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
