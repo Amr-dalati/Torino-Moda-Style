@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->alias([
             'tokenable' => \App\Http\Middleware\EnsureTokenableIs::class,
+            'local.testing' => \App\Http\Middleware\EnsureLocalOrTesting::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

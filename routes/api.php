@@ -4,8 +4,11 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\CustomerCartController;
+use App\Http\Controllers\Api\CustomerCheckoutController;
 use App\Http\Controllers\Api\CustomerProfileController;
+use App\Http\Controllers\Api\CustomerOrderController;
 use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\MockPaymentController;
 use App\Http\Controllers\Api\PhoenixHealthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockController;
@@ -51,4 +54,15 @@ Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->p
     Route::put('/cart/items/{id}', [CustomerCartController::class, 'updateItem'])->whereNumber('id');
     Route::delete('/cart/items/{id}', [CustomerCartController::class, 'removeItem'])->whereNumber('id');
     Route::delete('/cart', [CustomerCartController::class, 'clear']);
+
+    Route::post('/checkout/quote', [CustomerCheckoutController::class, 'quote']);
+    Route::post('/checkout', [CustomerCheckoutController::class, 'checkout']);
+
+    Route::get('/orders', [CustomerOrderController::class, 'index']);
+    Route::get('/orders/{id}', [CustomerOrderController::class, 'show'])->whereNumber('id');
+    Route::get('/orders/{id}/payment-status', [CustomerOrderController::class, 'paymentStatus'])->whereNumber('id');
+});
+
+Route::middleware('local.testing')->group(function () {
+    Route::post('/payments/mock/success', [MockPaymentController::class, 'success']);
 });
