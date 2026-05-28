@@ -32,5 +32,7 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ],
         );
+
+        $this->call(DeliverySeeder::class);
     }
 }
