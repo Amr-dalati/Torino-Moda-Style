@@ -66,7 +66,7 @@ class MockPhoenixClient implements PhoenixClientInterface
             return database_path('fixtures/phoenix/sales_order_created.json');
         }
 
-        if (preg_match('#^api/products/\d+$#', $normalized)) {
+        if (preg_match('#^api/products/[^/]+$#', $normalized)) {
             return database_path('fixtures/phoenix/product_detail.json');
         }
 
