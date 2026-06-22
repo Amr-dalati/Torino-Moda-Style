@@ -26,7 +26,7 @@ class OrderTotalsImmutabilityTest extends TestCase
             'delivery_fee' => '10.00',
             'discount_total' => '0.00',
             'total' => '110.00',
-            'currency' => 'EGP',
+            'currency' => config('app.currency'),
             'shipping_address_line1' => 'Street 1',
             'shipping_recipient_name' => 'Test',
             'shipping_recipient_phone' => '01000000000',

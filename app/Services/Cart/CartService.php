@@ -32,6 +32,7 @@ class CartService
                     'customer_id' => $customer->id,
                     'status' => 'active',
                     'subtotal' => '0.00',
+                    'currency' => config('app.currency'),
                 ]);
             }
 
@@ -57,6 +58,7 @@ class CartService
                     'customer_id' => $customer->id,
                     'status' => 'active',
                     'subtotal' => '0.00',
+                    'currency' => config('app.currency'),
                 ]);
             }
 
@@ -192,6 +194,7 @@ class CartService
                     'customer_id' => $customer->id,
                     'status' => 'active',
                     'subtotal' => '0.00',
+                    'currency' => config('app.currency'),
                 ]);
             }
 

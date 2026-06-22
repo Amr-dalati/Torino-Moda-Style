@@ -14,7 +14,7 @@ class CartResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status,
             'subtotal' => $this->subtotal,
-            'currency' => $this->currency,
+            'currency' => $this->currency ?? config('app.currency'),
             'items' => CartItemResource::collection($this->whenLoaded('items')),
         ];
     }

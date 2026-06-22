@@ -85,7 +85,8 @@ class CheckoutTest extends TestCase
         $this->assertSame($quote['discount_total'], $checkout['order']['discount_total']);
         $this->assertSame($quote['total'], $checkout['order']['total']);
 
-        $this->assertSame('EGP', $checkout['order']['currency']);
+        $this->assertSame(config('app.currency'), $checkout['order']['currency']);
+        $this->assertSame($checkout['order']['currency'], $checkout['payment']['currency']);
         $this->assertSame($checkout['order']['total'], $checkout['payment']['amount']);
     }
 
@@ -156,7 +157,8 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.order.order_status', 'awaiting_payment')
             ->assertJsonPath('data.order.payment_status', 'pending')
             ->assertJsonPath('data.payment.status', 'pending')
-            ->assertJsonPath('data.order.currency', 'EGP');
+            ->assertJsonPath('data.order.currency', config('app.currency'))
+            ->assertJsonPath('data.payment.currency', config('app.currency'));
 
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
@@ -489,6 +491,40 @@ class CheckoutTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.payment_status', 'pending');
+    }
+
+    public function test_order_api_never_returns_null_currency_for_legacy_rows(): void
+    {
+        $customer = Customer::factory()->create();
+        Sanctum::actingAs($customer);
+
+        $order = Order::query()->create([
+            'order_number' => 'TMS-LEGACY-000001',
+            'customer_id' => $customer->id,
+            'order_status' => 'awaiting_payment',
+            'payment_status' => 'pending',
+            'subtotal' => '10.00',
+            'delivery_fee' => '0.00',
+            'discount_total' => '0.00',
+            'total' => '10.00',
+            'currency' => null,
+            'shipping_address_line1' => 'Legacy Street 1',
+        ]);
+
+        Payment::query()->create([
+            'order_id' => $order->id,
+            'provider' => 'mock',
+            'method' => 'card',
+            'amount' => '10.00',
+            'currency' => null,
+            'status' => 'pending',
+            'merchant_reference' => 'mr_TMS-LEGACY-000001',
+        ]);
+
+        $this->getJson("/api/customer/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.currency', config('app.currency'))
+            ->assertJsonPath('data.payments.0.currency', config('app.currency'));
     }
 }
 

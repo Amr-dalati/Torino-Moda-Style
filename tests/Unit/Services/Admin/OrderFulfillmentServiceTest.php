@@ -27,7 +27,7 @@ class OrderFulfillmentServiceTest extends TestCase
             'delivery_fee' => 10,
             'discount_total' => 0,
             'total' => 110,
-            'currency' => 'EGP',
+            'currency' => config('app.currency'),
             'shipping_label' => 'Home',
             'shipping_recipient_name' => 'Test',
             'shipping_recipient_phone' => '01000000000',

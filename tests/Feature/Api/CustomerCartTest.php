@@ -43,7 +43,26 @@ class CustomerCartTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.status', 'active')
             ->assertJsonPath('data.subtotal', '0.00')
+            ->assertJsonPath('data.currency', config('app.currency'))
             ->assertJsonCount(0, 'data.items');
+    }
+
+    public function test_cart_api_never_returns_null_currency_for_legacy_rows(): void
+    {
+        $customer = Customer::factory()->create();
+
+        Cart::query()->create([
+            'customer_id' => $customer->id,
+            'status' => 'active',
+            'subtotal' => '0.00',
+            'currency' => null,
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $this->getJson('/api/customer/cart')
+            ->assertOk()
+            ->assertJsonPath('data.currency', config('app.currency'));
     }
 
     public function test_add_item_success_and_subtotal_recalculation(): void
@@ -61,7 +80,8 @@ class CustomerCartTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.items.0.product_variant_id', $variant->id)
             ->assertJsonPath('data.items.0.quantity', 2)
-            ->assertJsonPath('data.subtotal', '2598.00');
+            ->assertJsonPath('data.subtotal', '2598.00')
+            ->assertJsonPath('data.currency', config('app.currency'));
     }
 
     public function test_add_item_above_stock_returns_422(): void

@@ -15,7 +15,7 @@ class PaymentResource extends JsonResource
             'provider' => $this->provider,
             'method' => $this->method,
             'amount' => $this->amount,
-            'currency' => $this->currency,
+            'currency' => $this->currency ?? config('app.currency'),
             'status' => $this->status,
             'merchant_reference' => $this->merchant_reference,
             'gateway_payment_id' => $this->gateway_payment_id,

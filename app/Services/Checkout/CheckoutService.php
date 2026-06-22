@@ -34,7 +34,7 @@ class CheckoutService
             /** @var Cart $cart */
             $cart = Cart::query()->firstOrCreate(
                 ['customer_id' => $customer->id, 'status' => 'active'],
-                ['subtotal' => '0.00'],
+                ['subtotal' => '0.00', 'currency' => config('app.currency')],
             );
 
             /** @var Cart $cart */
@@ -108,7 +108,7 @@ class CheckoutService
                 'delivery_fee' => $quote['delivery_fee'],
                 'discount_total' => $quote['discount_total'],
                 'total' => $quote['total'],
-                'currency' => 'EGP',
+                'currency' => config('app.currency'),
                 'shipping_label' => $address->label,
                 'shipping_recipient_name' => $address->recipient_name,
                 'shipping_recipient_phone' => $address->recipient_phone,

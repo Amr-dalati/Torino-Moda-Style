@@ -19,7 +19,7 @@ class OrderResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'discount_total' => $this->discount_total,
             'total' => $this->total,
-            'currency' => $this->currency,
+            'currency' => $this->currency ?? config('app.currency'),
             'shipping' => [
                 'label' => $this->shipping_label,
                 'recipient_name' => $this->shipping_recipient_name,

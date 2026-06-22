@@ -18,7 +18,7 @@ class CheckoutQuoteService
         /** @var Cart $cart */
         $cart = Cart::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'status' => 'active'],
-            ['subtotal' => 0],
+            ['subtotal' => 0, 'currency' => config('app.currency')],
         );
 
         $cart->load(['items']);
