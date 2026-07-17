@@ -43,6 +43,12 @@ class CustomerAuthService
             ]);
         }
 
+        if ($customer->isDeleted()) {
+            throw ValidationException::withMessages([
+                'phone' => ['This account is no longer available.'],
+            ]);
+        }
+
         if (! $customer->is_active) {
             throw ValidationException::withMessages([
                 'phone' => ['This account is inactive.'],

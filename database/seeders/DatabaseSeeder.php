@@ -35,6 +35,10 @@ class DatabaseSeeder extends Seeder
 
         $this->call(DeliverySeeder::class);
 
+        if (app()->environment('staging')) {
+            $this->call(StagingSeeder::class);
+        }
+
         // Rich local demo data (catalog, customers, stock). Not auto-run in testing — tests use phoenix:sync.
         if (app()->environment('local')) {
             $this->call(DemoDataSeeder::class);

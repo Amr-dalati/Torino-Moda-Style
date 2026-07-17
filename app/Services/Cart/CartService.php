@@ -6,7 +6,7 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\ProductVariant;
-use App\Models\StockLevel;
+use App\Services\Stock\StockReservationService;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
@@ -14,6 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class CartService
 {
+    public function __construct(
+        protected StockReservationService $stock,
+    ) {}
+
     public function getActiveCart(Customer $customer): Cart
     {
         return DB::transaction(function () use ($customer) {
@@ -72,7 +76,7 @@ class CartService
 
             $newQty = $existing ? ($existing->quantity + $quantity) : $quantity;
 
-            $available = $this->availableQuantityForVariant($variant->id);
+            $available = $this->stock->availableQuantityForVariant($variant->id);
             $this->ensureSufficientStock($newQty, $available);
 
             $unitPrice = $this->unitPriceSnapshot($variant);
@@ -102,7 +106,7 @@ class CartService
                             ->firstOrFail();
 
                         $mergedQty = $existingAfter->quantity + $quantity;
-                        $available = $this->availableQuantityForVariant($variant->id);
+                        $available = $this->stock->availableQuantityForVariant($variant->id);
                         $this->ensureSufficientStock($mergedQty, $available);
 
                         $existingAfter->forceFill([
@@ -138,7 +142,7 @@ class CartService
 
             $variant = $this->loadVariantOrFail($item->product_variant_id);
 
-            $available = $this->availableQuantityForVariant($variant->id);
+            $available = $this->stock->availableQuantityForVariant($variant->id);
             $this->ensureSufficientStock($quantity, $available);
 
             $unitPrice = $this->unitPriceSnapshot($variant);
@@ -229,20 +233,6 @@ class CartService
         }
 
         return Money::format(Money::cents($variant->product->sale_price));
-    }
-
-    protected function availableQuantityForVariant(int $variantId): float
-    {
-        $rows = StockLevel::query()
-            ->where('product_variant_id', $variantId)
-            ->get(['quantity_on_hand', 'quantity_reserved']);
-
-        $sum = 0.0;
-        foreach ($rows as $row) {
-            $sum += (float) $row->quantity_on_hand - (float) $row->quantity_reserved;
-        }
-
-        return max(0.0, $sum);
     }
 
     protected function ensureSufficientStock(int $requestedQty, float $available): void

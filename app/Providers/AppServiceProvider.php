@@ -2,6 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
+use App\Models\StockLevel;
+use App\Observers\CatalogCacheObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -22,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $observer = CatalogCacheObserver::class;
+        Product::observe($observer);
+        Category::observe($observer);
+        Brand::observe($observer);
+        ProductImage::observe($observer);
+        ProductVariant::observe($observer);
+        StockLevel::observe($observer);
+
         RateLimiter::for('auth.strict', function (Request $request) {
             return Limit::perMinute(5)->by('ip:'.$request->ip());
         });
@@ -42,6 +57,13 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('mock.payment.strict', function (Request $request) {
             return Limit::perMinute(3)->by('ip:'.$request->ip());
+        });
+
+        RateLimiter::for('account.deletion.strict', function (Request $request) {
+            $tokenable = $request->user();
+            $key = $tokenable ? ('customer:'.$tokenable->getAuthIdentifier()) : ('ip:'.$request->ip());
+
+            return Limit::perMinute(3)->by($key);
         });
     }
 }

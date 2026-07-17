@@ -59,6 +59,36 @@ class OrderResource extends Resource
                         'cancelled' => 'cancelled',
                         'expired' => 'expired',
                     ]),
+                Tables\Filters\TernaryFilter::make('is_paid')
+                    ->label('Paid')
+                    ->queries(
+                        true: fn (Builder $query) => $query->where('payment_status', 'paid'),
+                        false: fn (Builder $query) => $query->where('payment_status', '!=', 'paid'),
+                    ),
+                Tables\Filters\Filter::make('pending_fulfillment')
+                    ->label('Pending fulfillment')
+                    ->query(fn (Builder $query) => $query->where('payment_status', 'paid')->where('order_status', 'paid')),
+                Tables\Filters\SelectFilter::make('customer_id')
+                    ->label('Customer')
+                    ->relationship('customer', 'name')
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('shipping_delivery_region_code')
+                    ->label('Delivery region')
+                    ->options(fn () => Order::query()
+                        ->whereNotNull('shipping_delivery_region_code')
+                        ->distinct()
+                        ->orderBy('shipping_delivery_region_code')
+                        ->pluck('shipping_delivery_region_code', 'shipping_delivery_region_code')
+                        ->all()),
+                Tables\Filters\SelectFilter::make('shipping_delivery_area_code')
+                    ->label('Delivery area')
+                    ->options(fn () => Order::query()
+                        ->whereNotNull('shipping_delivery_area_code')
+                        ->distinct()
+                        ->orderBy('shipping_delivery_area_code')
+                        ->pluck('shipping_delivery_area_code', 'shipping_delivery_area_code')
+                        ->all()),
                 Tables\Filters\Filter::make('created_at')
                     ->form([
                         \Filament\Forms\Components\DatePicker::make('from'),
@@ -91,12 +121,13 @@ class OrderResource extends Resource
                     ->visible(fn (Order $record) => $record->payment_status === 'paid' && $record->order_status === 'shipped')
                     ->action(fn (Order $record) => app(OrderFulfillmentService::class)->markDelivered($record->id)),
 
-                Action::make('cancel')
+                Action::make('cancel_unpaid')
                     ->label('Cancel Order')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->visible(fn (Order $record) => $record->payment_status === 'paid' && in_array($record->order_status, ['paid', 'processing'], true))
-                    ->action(fn (Order $record) => app(OrderFulfillmentService::class)->cancel($record->id)),
+                    ->visible(fn (Order $record) => $record->payment_status !== 'paid'
+                        && ! in_array($record->order_status, ['cancelled', 'shipped', 'delivered'], true))
+                    ->action(fn (Order $record) => app(OrderFulfillmentService::class)->cancelUnpaid($record->id)),
             ])
             ->bulkActions([]);
     }

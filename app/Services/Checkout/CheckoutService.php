@@ -9,7 +9,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\ProductVariant;
-use App\Models\StockLevel;
+use App\Services\Stock\StockReservationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +20,7 @@ class CheckoutService
     public function __construct(
         protected CheckoutQuoteService $quotes,
         protected PaymentService $payments,
+        protected StockReservationService $stock,
     ) {}
 
     /**
@@ -64,9 +65,9 @@ class CheckoutService
                 ]);
             }
 
-            // Revalidate stock at checkout time.
+            // Revalidate stock at checkout time (sellable = on_hand - reserved).
             foreach ($cart->items as $item) {
-                $available = $this->availableQuantityForVariant($item->product_variant_id);
+                $available = $this->stock->availableQuantityForVariant($item->product_variant_id);
                 if ($item->quantity > (int) floor($available)) {
                     throw ValidationException::withMessages([
                         'cart' => ['Insufficient stock available for one or more items.'],
@@ -168,9 +169,12 @@ class CheckoutService
                 ]);
             }
 
+            $order->load('items');
+            $this->stock->reserveForOrder($order);
+
             $payment = Payment::query()->create([
                 'order_id' => $order->id,
-                'provider' => 'mock',
+                'provider' => config('payments.provider', 'mock'),
                 'method' => 'card',
                 'amount' => $order->total,
                 'currency' => $order->currency,
@@ -185,20 +189,6 @@ class CheckoutService
                 'payment' => $payment,
             ];
         });
-    }
-
-    protected function availableQuantityForVariant(int $variantId): float
-    {
-        $rows = StockLevel::query()
-            ->where('product_variant_id', $variantId)
-            ->get(['quantity_on_hand', 'quantity_reserved']);
-
-        $sum = 0.0;
-        foreach ($rows as $row) {
-            $sum += (float) $row->quantity_on_hand - (float) $row->quantity_reserved;
-        }
-
-        return max(0.0, $sum);
     }
 
     protected function generateTempOrderNumber(): string

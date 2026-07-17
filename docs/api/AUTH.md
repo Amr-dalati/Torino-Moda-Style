@@ -68,6 +68,34 @@ Success:
 - **POST** `/api/customer/logout`
 - **Auth**: `auth:sanctum` + **Customer tokenable**
 
+### Delete account (throttled)
+- **DELETE** `/api/customer/account`
+- **Auth**: `auth:sanctum` + **Customer tokenable**
+- **Rate limit**: strict per customer (3/minute)
+
+Request:
+
+```json
+{
+  "password": "current password",
+  "confirmation": "DELETE"
+}
+```
+
+Success:
+
+```json
+{
+  "success": true,
+  "message": "Account deleted successfully",
+  "data": null,
+  "meta": null,
+  "errors": null
+}
+```
+
+Validation failures return **422** for incorrect password or confirmation. All customer tokens are revoked on success. Orders and payments are retained; profile data is anonymized. See `docs/ACCOUNT-DELETION.md`.
+
 ## Shared authenticated routes (no tokenable restriction)
 These require `auth:sanctum` but allow either **User** or **Customer** tokens:
 - `GET /api/products`

@@ -48,5 +48,10 @@ class ProductVariant extends Model
     {
         return $this->hasMany(StockLevel::class);
     }
+
+    public function isPhoenixOwned(): bool
+    {
+        return $this->phoenix_id !== null;
+    }
 }
 

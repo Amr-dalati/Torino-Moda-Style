@@ -22,6 +22,10 @@ class Customer extends Authenticatable
         'password',
         'is_active',
         'last_login_at',
+        'deletion_requested_at',
+        'deleted_at',
+        'anonymized_at',
+        'deletion_reason',
     ];
 
     protected $hidden = [
@@ -35,7 +39,15 @@ class Customer extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'deletion_requested_at' => 'datetime',
+            'deleted_at' => 'datetime',
+            'anonymized_at' => 'datetime',
         ];
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->deleted_at !== null;
     }
 
     public function addresses(): HasMany

@@ -82,7 +82,9 @@ class ProductApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.id', $product->id)
-            ->assertJsonPath('data.product_code', 'TMS-SHOE-001');
+            ->assertJsonPath('data.product_code', 'TMS-SHOE-001')
+            ->assertJsonPath('data.primary_image_url', null)
+            ->assertJsonPath('data.images', []);
     }
 
     public function test_product_detail_404(): void

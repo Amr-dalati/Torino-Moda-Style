@@ -4,6 +4,7 @@ namespace App\Services\Sync;
 
 use App\Integrations\Phoenix\Contracts\PhoenixProductServiceInterface;
 use App\Integrations\Phoenix\Contracts\PhoenixStockServiceInterface;
+use App\Enums\ProductSource;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Color;
@@ -105,8 +106,15 @@ class SyncFromPhoenixService
                         $counts['brands']++;
                     }
 
+                    $productCode = (string) $p['product_code'];
+                    $existingProduct = Product::query()->where('product_code', $productCode)->first();
+
+                    if ($existingProduct && $existingProduct->source === ProductSource::Manual) {
+                        continue;
+                    }
+
                     $product = Product::query()->updateOrCreate(
-                        ['product_code' => (string) $p['product_code']],
+                        ['product_code' => $productCode],
                         [
                             'phoenix_id' => $p['id'] ?? null,
                             'barcode' => $p['barcode'] ?? null,
@@ -116,6 +124,7 @@ class SyncFromPhoenixService
                             'brand_id' => $brand?->id,
                             'sale_price' => $p['sale_price'] ?? null,
                             'is_active' => (($p['status'] ?? 'active') === 'active'),
+                            'source' => ProductSource::Phoenix,
                             'synced_at' => $syncedAt,
                         ],
                     );

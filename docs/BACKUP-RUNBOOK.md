@@ -56,6 +56,60 @@ php artisan optimize:clear
 
 - Verify:
   - `GET /api/health`
+  - `GET /api/readiness`
   - basic login flows
   - admin panel access
+
+## Environment file backup policy
+- Store `.env` backups in a secrets manager or encrypted offline store — **never** in git
+- Rotate `APP_KEY`, Thawani keys, and webhook secrets after compromise
+- Document which environment each backup belongs to
+
+## Backup encryption
+- Encrypt database dumps at rest (e.g. `gpg`, cloud provider KMS)
+- Restrict backup bucket access to operations staff only
+
+## Rollback process
+
+### Application rollback
+1. Enable maintenance mode: `php artisan down`
+2. Deploy previous known-good release artifact / git tag
+3. Restore database backup if schema or data migration is not backward compatible
+4. `php artisan optimize:clear`
+5. Verify health/readiness endpoints
+6. `php artisan up`
+
+### Flutter rollback
+- Publish previous store version (Play Console / App Store Connect)
+- Ensure previous build's `API_BASE_URL` and payment hosts still match backend
+
+## Thawani incident handling
+- If payments fail broadly: check Thawani status, webhook logs, `THAWANI_*` env vars
+- Do not change success/cancel URLs without updating Thawani dashboard
+- Reconcile stuck orders via admin panel + `payments:expire-pending` if scheduler was down
+
+## Webhook outage handling
+- Customers can still return via mobile deep link; polling reconciles payment status
+- Replay webhooks from Thawani dashboard when available
+- Monitor `payment_webhook_events` / order payment status in Filament
+
+## Scheduler outage handling
+- Cron must run every minute: `* * * * * php /path/to/artisan schedule:run`
+- If heartbeat is stale, readiness reports scheduler as degraded
+- Manually run: `php artisan payments:expire-pending`
+
+## Laravel maintenance mode
+
+```bash
+php artisan down --secret="maintenance-bypass-token"
+# deploy / restore
+php artisan up
+```
+
+## Database migration procedure (production)
+1. Backup database
+2. Put app in maintenance mode (optional, for breaking migrations)
+3. `php artisan migrate --force`
+4. Smoke test health, login, checkout read paths
+5. Disable maintenance mode
 

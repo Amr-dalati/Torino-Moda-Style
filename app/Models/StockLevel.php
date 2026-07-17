@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StockLevel extends Model
 {
@@ -32,6 +33,16 @@ class StockLevel extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(StockAdjustment::class);
+    }
+
+    public function availableQuantity(): float
+    {
+        return max(0.0, (float) $this->quantity_on_hand - (float) $this->quantity_reserved);
     }
 }
 

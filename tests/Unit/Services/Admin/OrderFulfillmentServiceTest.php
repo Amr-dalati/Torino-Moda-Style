@@ -74,22 +74,20 @@ class OrderFulfillmentServiceTest extends TestCase
         $this->assertSame('delivered', $updated->order_status);
     }
 
-    public function test_paid_can_be_cancelled(): void
+    public function test_paid_order_cancel_is_blocked_without_refund_workflow(): void
     {
         $order = $this->makePaidOrder('paid');
 
-        $updated = app(OrderFulfillmentService::class)->cancel($order->id);
-
-        $this->assertSame('cancelled', $updated->order_status);
+        $this->expectException(ValidationException::class);
+        app(OrderFulfillmentService::class)->cancel($order->id);
     }
 
-    public function test_processing_can_be_cancelled(): void
+    public function test_processing_paid_order_cancel_is_blocked_without_refund_workflow(): void
     {
         $order = $this->makePaidOrder('processing');
 
-        $updated = app(OrderFulfillmentService::class)->cancel($order->id);
-
-        $this->assertSame('cancelled', $updated->order_status);
+        $this->expectException(ValidationException::class);
+        app(OrderFulfillmentService::class)->cancel($order->id);
     }
 
     public function test_unpaid_order_is_forbidden_from_fulfillment(): void
@@ -116,15 +114,10 @@ class OrderFulfillmentServiceTest extends TestCase
         $shipped = $this->makePaidOrder('shipped');
         $delivered = $this->makePaidOrder('delivered');
 
-        try {
-            app(OrderFulfillmentService::class)->cancel($shipped->id);
-            $this->fail('Expected ValidationException for shipped cancellation.');
-        } catch (ValidationException $e) {
-            $this->assertTrue(true);
-        }
+        $this->expectException(ValidationException::class);
+        app(OrderFulfillmentService::class)->cancel($shipped->id);
 
         $this->expectException(ValidationException::class);
         app(OrderFulfillmentService::class)->cancel($delivered->id);
     }
 }
-

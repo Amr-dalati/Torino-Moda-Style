@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CatalogController;
+use App\Http\Controllers\Api\CustomerAccountController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\CustomerCartController;
@@ -9,9 +11,11 @@ use App\Http\Controllers\Api\CustomerProfileController;
 use App\Http\Controllers\Api\CustomerOrderController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\HealthController;
+use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\MockPaymentController;
 use App\Http\Controllers\Api\PhoenixHealthController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ReadinessController;
 use App\Http\Controllers\Api\StockController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,28 +28,34 @@ Route::middleware('throttle:auth.strict')->group(function () {
 Route::get('/delivery/regions', [DeliveryController::class, 'regions']);
 Route::get('/delivery/areas', [DeliveryController::class, 'areas']);
 Route::get('/health', HealthController::class);
+Route::get('/readiness', ReadinessController::class);
 
 Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\User::class])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/phoenix/health', PhoenixHealthController::class);
-});
-
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/products', [ProductController::class, 'index']);
-    Route::get('/products/search', [ProductController::class, 'search']);
-    Route::get('/products/barcode/{barcode}', [ProductController::class, 'barcode']);
-    Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
 
     Route::get('/stock', [StockController::class, 'index']);
     Route::get('/stock/product/{product_id}', [StockController::class, 'byProduct'])->whereNumber('product_id');
     Route::get('/stock/warehouse/{warehouse_id}', [StockController::class, 'byWarehouse'])->whereNumber('warehouse_id');
 });
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/categories', [CatalogController::class, 'categories']);
+    Route::get('/brands', [CatalogController::class, 'brands']);
+
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/search', [ProductController::class, 'search']);
+    Route::get('/products/barcode/{barcode}', [ProductController::class, 'barcode']);
+    Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
+});
+
 Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->prefix('customer')->group(function () {
     Route::get('/me', [CustomerAuthController::class, 'me']);
     Route::post('/logout', [CustomerAuthController::class, 'logout']);
     Route::put('/profile', [CustomerProfileController::class, 'update']);
+    Route::delete('/account', [CustomerAccountController::class, 'destroy'])
+        ->middleware('throttle:account.deletion.strict');
 
     Route::get('/addresses', [CustomerAddressController::class, 'index']);
     Route::post('/addresses', [CustomerAddressController::class, 'store']);
@@ -74,3 +84,6 @@ Route::middleware(['auth:sanctum', 'tokenable:'.\App\Models\Customer::class])->p
 Route::middleware('local.testing')->group(function () {
     Route::post('/payments/mock/success', [MockPaymentController::class, 'success'])->middleware('throttle:mock.payment.strict');
 });
+
+Route::post('/payments/webhook/{provider}', PaymentWebhookController::class)
+    ->middleware('throttle:60,1');

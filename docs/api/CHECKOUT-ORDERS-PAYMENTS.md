@@ -59,3 +59,32 @@ Behavior:
 - Idempotent: repeated calls keep state consistent.
 - Only transitions **pending → paid**; otherwise returns **422**.
 
+## Thawani browser return (web, no auth)
+
+These routes receive the customer after Thawani hosted checkout. They **do not** change payment state.
+
+- **GET** `/payments/thawani/success`
+- **GET** `/payments/thawani/cancel`
+
+Query parameters used to resolve the order (safe lookup only):
+
+- `session_id` → payment `gateway_payment_id`
+- `client_reference_id` → payment `merchant_reference`
+
+Behavior:
+
+- Redirects to `MOBILE_PAYMENT_SUCCESS_URL` or `MOBILE_PAYMENT_CANCEL_URL` (default `torinomodastyle://payment/...`) with `order_id` when resolved.
+- Falls back to a static HTML page if mobile URLs are not configured.
+- Rejects open-redirect query parameters (`redirect`, `return_url`, `next`).
+
+Configure in `.env`:
+
+```env
+THAWANI_SUCCESS_URL="${APP_URL}/payments/thawani/success"
+THAWANI_CANCEL_URL="${APP_URL}/payments/thawani/cancel"
+MOBILE_PAYMENT_SUCCESS_URL=torinomodastyle://payment/success
+MOBILE_PAYMENT_CANCEL_URL=torinomodastyle://payment/cancel
+```
+
+Mobile app documentation: see `torino-moda-style-mobile/docs/PAYMENT_RETURN_FLOW.md`.
+

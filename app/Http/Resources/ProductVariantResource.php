@@ -31,6 +31,10 @@ class ProductVariantResource extends JsonResource
             ]),
             'sale_price' => $this->sale_price,
             'is_active' => $this->is_active,
+            'is_in_stock' => $this->when(
+                array_key_exists('is_in_stock', $this->resource->getAttributes()),
+                (bool) $this->resource->getAttribute('is_in_stock'),
+            ),
         ];
     }
 }

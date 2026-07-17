@@ -35,6 +35,9 @@ class Order extends Model
         'sync_status',
         'sync_attempts',
         'last_sync_error',
+        'stock_allocations',
+        'stock_committed_at',
+        'stock_released_at',
     ];
 
     protected function casts(): array
@@ -44,6 +47,9 @@ class Order extends Model
             'delivery_fee' => 'decimal:2',
             'discount_total' => 'decimal:2',
             'total' => 'decimal:2',
+            'stock_allocations' => 'array',
+            'stock_committed_at' => 'datetime',
+            'stock_released_at' => 'datetime',
         ];
     }
 

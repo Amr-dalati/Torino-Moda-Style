@@ -57,7 +57,50 @@ class PaymentResource extends Resource
                 Tables\Columns\TextColumn::make('amount')->sortable(),
                 Tables\Columns\TextColumn::make('merchant_reference')->searchable(),
                 Tables\Columns\TextColumn::make('paid_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('expires_at')->dateTime()->sortable(),
                 Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('provider')
+                    ->options(fn () => Payment::query()->distinct()->orderBy('provider')->pluck('provider', 'provider')->all()),
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'pending' => 'pending',
+                        'paid' => 'paid',
+                        'failed' => 'failed',
+                        'cancelled' => 'cancelled',
+                        'expired' => 'expired',
+                    ]),
+                Tables\Filters\Filter::make('created_at')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('from'),
+                        \Filament\Forms\Components\DatePicker::make('until'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '>=', $date))
+                            ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('created_at', '<=', $date));
+                    }),
+                Tables\Filters\Filter::make('paid_at')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('from'),
+                        \Filament\Forms\Components\DatePicker::make('until'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('paid_at', '>=', $date))
+                            ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('paid_at', '<=', $date));
+                    }),
+                Tables\Filters\Filter::make('expires_at')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('from'),
+                        \Filament\Forms\Components\DatePicker::make('until'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        return $query
+                            ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('expires_at', '>=', $date))
+                            ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('expires_at', '<=', $date));
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
